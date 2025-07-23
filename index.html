@@ -5,8 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>크아앙 길드 제 2회 이벤트</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      height: 100%;
+    }
+    body {
+      background-image: url('afdce200-ce21-4eeb-9b12-6140b6fa8d55.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .overlay {
+      background-color: rgba(255, 255, 255, 0.9);
+    }
+  </style>
+</head>
+<body class="p-4 font-sans flex items-center justify-center min-h-screen">
 
-  <!-- Firebase SDK -->
+  <!-- 점수판 영역 -->
+  <div class="overlay relative z-10 max-w-xl w-full bg-white rounded-xl shadow-md p-6">
+    <h1 class="text-2xl font-bold text-center mb-4">🐉 크아앙 제2회 이벤트 점수판</h1>
+
+    <div id="ranking" class="mb-4"></div>
+
+    <div id="admin" class="space-y-2 hidden">
+      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
+      <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
+      <div class="flex gap-2">
+        <button onclick="resetScores()" class="bg-yellow-500 text-white px-4 py-2 rounded flex-1">점수 초기화</button>
+        <button onclick="resetAll()" class="bg-red-500 text-white px-4 py-2 rounded flex-1">모두 초기화</button>
+      </div>
+    </div>
+
+    <div id="passwordPrompt" class="mt-6">
+      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded"/>
+      <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
     import { getDatabase, ref, set, get, onValue, child } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
@@ -52,7 +88,6 @@
       }).join("");
     }
 
-    // 참가자 추가
     window.addPlayer = async function () {
       const name = document.getElementById("newName").value.trim();
       if (!name) return alert("닉네임을 입력하세요");
@@ -62,21 +97,18 @@
       document.getElementById("newName").value = "";
     }
 
-    // 점수 +1
     window.addScore = async function (name) {
       const snapshot = await get(child(ref(db), "players/" + name));
       const current = snapshot.exists() ? snapshot.val().score : 0;
       await set(ref(db, "players/" + name), { score: current + 1 });
     }
 
-    // 점수 -1
     window.subtractScore = async function (name) {
       const snapshot = await get(child(ref(db), "players/" + name));
       const current = snapshot.exists() ? snapshot.val().score : 0;
       await set(ref(db, "players/" + name), { score: Math.max(0, current - 1) });
     }
 
-    // 점수 초기화
     window.resetScores = async function () {
       const snapshot = await get(playersRef);
       const updates = {};
@@ -86,14 +118,12 @@
       await set(playersRef, updates);
     }
 
-    // 전체 초기화
     window.resetAll = function () {
       if (confirm("정말 모든 참가자를 삭제하시겠습니까?")) {
         set(playersRef, {});
       }
     }
 
-    // 관리자 로그인
     window.checkPassword = async function () {
       const pw = document.getElementById("pwInput").value;
       if (pw === "kuaang123") {
@@ -101,7 +131,6 @@
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
 
-        // 로그인 후 버튼이 즉시 보이도록 다시 렌더링
         const snapshot = await get(playersRef);
         const data = snapshot.val() || {};
         renderRanking(data);
@@ -110,30 +139,5 @@
       }
     }
   </script>
-</head>
-<body class="bg-gray-100 p-4 font-sans relative">
-  <!-- 흐릿한 배경 이미지 -->
-  <div class="absolute inset-0 bg-cover bg-center opacity-10 z-0" style="background-image: url('babydragon.jpg');"></div>
-
-  <!-- 점수판 영역 -->
-  <div class="relative z-10 max-w-xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-6">
-    <h1 class="text-2xl font-bold text-center mb-4">🐉 크아앙 제2회 이벤트 점수판</h1>
-
-    <div id="ranking" class="mb-4"></div>
-
-    <div id="admin" class="space-y-2 hidden">
-      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
-      <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
-      <div class="flex gap-2">
-        <button onclick="resetScores()" class="bg-yellow-500 text-white px-4 py-2 rounded flex-1">점수 초기화</button>
-        <button onclick="resetAll()" class="bg-red-500 text-white px-4 py-2 rounded flex-1">모두 초기화</button>
-      </div>
-    </div>
-
-    <div id="passwordPrompt" class="mt-6">
-      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded"/>
-      <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
-    </div>
-  </div>
 </body>
 </html>
