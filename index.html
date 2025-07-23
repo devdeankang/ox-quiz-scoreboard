@@ -56,13 +56,13 @@
       document.getElementById("ranking").innerHTML = sorted.map(([name, obj], i) => {
         const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
         return `
-        <div class="flex justify-between items-center border-b py-2">
+        <div class="flex justify-between items-center border-b py-3 text-lg">
           <span>${medal}${i + 1}. ${name}</span>
           <span class="flex items-center">
             ${obj.score}점
             ${isAdmin ? `
-              <button onclick="addScore('${name}')" class="ml-2 bg-blue-400 text-white px-2 py-1 rounded text-sm">+1점</button>
-              <button onclick="subtractScore('${name}')" class="ml-1 bg-red-400 text-white px-2 py-1 rounded text-sm">-1점</button>
+              <button onclick="addScore('${name}')" class="ml-2 bg-blue-400 text-white px-3 py-1 rounded text-sm">+1점</button>
+              <button onclick="subtractScore('${name}')" class="ml-1 bg-red-400 text-white px-3 py-1 rounded text-sm">-1점</button>
             ` : ""}
           </span>
         </div>`;
@@ -119,23 +119,23 @@
   </script>
 </head>
 <body class="p-4 font-sans">
-  <div class="relative z-10 max-w-xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-6 mt-10">
-    <h1 class="text-2xl font-bold text-center mb-4">🐉 크아앙 제2회 이벤트 점수판</h1>
+  <div class="relative z-10 max-w-2xl mx-auto bg-white bg-opacity-90 rounded-2xl shadow-lg p-10 mt-16">
+    <h1 class="text-3xl font-bold text-center mb-6">🐉 크아앙 제2회 이벤트 점수판</h1>
 
-    <div id="ranking" class="mb-4"></div>
+    <div id="ranking" class="mb-6"></div>
 
-    <div id="admin" class="space-y-2 hidden">
-      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
-      <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
-      <div class="flex gap-2">
-        <button onclick="resetScores()" class="bg-yellow-500 text-white px-4 py-2 rounded flex-1">점수 초기화</button>
-        <button onclick="resetAll()" class="bg-red-500 text-white px-4 py-2 rounded flex-1">모두 초기화</button>
+    <div id="admin" class="space-y-4 hidden">
+      <input id="newName" placeholder="닉네임" class="border p-3 w-full rounded text-lg"/>
+      <button onclick="addPlayer()" class="bg-blue-500 text-white px-5 py-3 rounded w-full text-lg">참가자 추가</button>
+      <div class="flex gap-4">
+        <button onclick="resetScores()" class="bg-yellow-500 text-white px-5 py-3 rounded flex-1 text-lg">점수 초기화</button>
+        <button onclick="resetAll()" class="bg-red-500 text-white px-5 py-3 rounded flex-1 text-lg">모두 초기화</button>
       </div>
     </div>
 
-    <div id="passwordPrompt" class="mt-6">
-      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded"/>
-      <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
+    <div id="passwordPrompt" class="mt-8">
+      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-3 w-full rounded text-lg"/>
+      <button onclick="checkPassword()" class="bg-green-500 text-white px-5 py-3 mt-3 rounded w-full text-lg">운영진 로그인</button>
     </div>
   </div>
 </body>
