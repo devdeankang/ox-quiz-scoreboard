@@ -5,10 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>크아앙 길드 제 2회 이벤트</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      background: url('babydragon.jpg') no-repeat center center fixed;
+      background-image: url('babydragon.jpg');
       background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
     }
   </style>
 
@@ -35,7 +45,6 @@
     let isAdmin = false;
     let latestData = {};
 
-    // 실시간 점수판 렌더링
     onValue(playersRef, (snapshot) => {
       const data = snapshot.val() || {};
       latestData = data;
@@ -102,7 +111,7 @@
         isAdmin = true;
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
-        renderRanking(latestData); // 버튼 다시 렌더링
+        renderRanking(latestData);
       } else {
         alert("비밀번호가 틀렸습니다");
       }
