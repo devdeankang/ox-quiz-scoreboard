@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>길드 O/X 퀴즈 점수판</title>
+  <title>크아앙 길드 제 2회 이벤트</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Firebase SDK -->
@@ -83,7 +83,7 @@
     // 관리자 로그인
     window.checkPassword = function () {
       const pw = document.getElementById("pwInput").value;
-      if (pw === "guildquiz2024") {
+      if (pw === "kuaang123") {
         isAdmin = true;
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
@@ -93,9 +93,13 @@
     }
   </script>
 </head>
-<body class="bg-gray-100 p-4 font-sans">
-  <div class="max-w-xl mx-auto bg-white rounded-xl shadow-md p-6">
-    <h1 class="text-2xl font-bold text-center mb-4">🎉 O/X 퀴즈 점수판</h1>
+<body class="bg-gray-100 p-4 font-sans relative">
+  <!-- 흐릿한 배경 이미지 -->
+  <div class="absolute inset-0 bg-cover bg-center opacity-10 z-0" style="background-image: url('babydragon.jpg');"></div>
+
+  <!-- 점수판 영역 -->
+  <div class="relative z-10 max-w-xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-6">
+    <h1 class="text-2xl font-bold text-center mb-4">🐉 크아앙 제2회 이벤트 점수판</h1>
 
     <div id="ranking" class="mb-4"></div>
 
