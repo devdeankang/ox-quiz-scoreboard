@@ -94,12 +94,17 @@
     }
 
     // 관리자 로그인
-    window.checkPassword = function () {
+    window.checkPassword = async function () {
       const pw = document.getElementById("pwInput").value;
       if (pw === "kuaang123") {
         isAdmin = true;
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
+
+        // 로그인 후 버튼이 즉시 보이도록 다시 렌더링
+        const snapshot = await get(playersRef);
+        const data = snapshot.val() || {};
+        renderRanking(data);
       } else {
         alert("비밀번호가 틀렸습니다");
       }
