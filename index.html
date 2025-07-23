@@ -1,121 +1,164 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>크아앙 길드 제 2회 이벤트</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
     import { getDatabase, ref, set, get, onValue, child } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCzlRB8iubjeLlTsHmJ0vydWrvSkSuIxn8",
-      authDomain: "ox-quiz-scoreboard.firebaseapp.com",
-      databaseURL: "https://ox-quiz-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "ox-quiz-scoreboard",
-      storageBucket: "ox-quiz-scoreboard.firebasestorage.app",
-      messagingSenderId: "28978610528",
-      appId: "1:28978610528:web:31a681985a0f67bf8c9e05",
-      measurementId: "G-JMP59Y4KYH"
-    };
-
+    const firebaseConfig = { /* ... 기존 설정 ... */ };
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const playersRef = ref(db, "players");
+    const configRef = ref(db, "config");
+    const roundsRef = ref(db, "rounds");
 
     let isAdmin = false;
 
-    // 실시간 점수판 렌더링
-    onValue(playersRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      renderRanking(data);
-    });
+    // 실시간 리스너: 참가자, 설정, 기록
+    onValue(playersRef, s => renderRanking(s.val() || {}));
+    onValue(configRef, s => { const c = s.val() || {}; setLocalConfig(c); renderRanking(); });
+    onValue(roundsRef, s => rounds = s.val() || []);
 
-    // 점수판 UI
-    function renderRanking(data) {
-      const sorted = Object.entries(data).sort((a, b) => b[1].score - a[1].score);
-      document.getElementById("ranking").innerHTML = sorted.map(([name, obj], i) =>
-        `<div class="flex justify-between items-center border-b py-2">
-          <span>${i + 1}. ${name}</span>
-          <span>${obj.score}점</span>
-          ${isAdmin ? `<button onclick="addScore('${name}')" class="bg-blue-400 text-white px-2 py-1 rounded text-sm">+1점</button>` : ""}
-        </div>`
-      ).join("");
+    let config = { prizes: {1:0,2:0,3:0} };
+    let rounds = [];
+
+    function setLocalConfig(c) { config = {...config, ...c }; document.getElementById("roundNumber").innerText = config.currentRound || 1; }
+
+    function renderRanking(dataOverride) {
+      const data = dataOverride || {};
+      const sorted = Object.entries(data).sort((a,b)=>b[1].score-a[1].score);
+      const prizeMap = config.prizes;
+      document.getElementById("ranking").innerHTML = sorted.map(([n,o],i)=>{
+        const medal = i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':'';
+        const prize = prizeMap[i+1] ? ` (${prizeMap[i+1].toLocaleString()} 메소)` : '';
+        return `
+        <div class="flex justify-between items-center border-b py-2">
+          <span>${medal}${i+1}. ${n}${prize}</span>
+          <span class="flex items-center">
+            ${o.score}점
+            ${isAdmin?`
+              <button onclick="addScore('${n}')" class="ml-2 btn-blue">+1</button>
+              <button onclick="subtractScore('${n}')" class="ml-1 btn-red">-1</button>
+            `:''}
+          </span>
+        </div>`;
+      }).join("");
     }
 
-    // 참가자 추가
-    window.addPlayer = async function () {
-      const name = document.getElementById("newName").value.trim();
-      if (!name) return alert("닉네임을 입력하세요");
-      const snapshot = await get(child(ref(db), "players/" + name));
-      if (snapshot.exists()) return alert("이미 존재합니다");
-      await set(ref(db, "players/" + name), { score: 0 });
-      document.getElementById("newName").value = "";
-    }
+    window.addScore = async n => await set(child(playersRef, n), { score: (await get(child(playersRef,n))).val().score + 1 });
+    window.subtractScore = async n => await set(child(playersRef,n), { score: Math.max(0,(await get(child(playersRef,n))).val().score -1) });
 
-    // 점수 +1
-    window.addScore = async function (name) {
-      const snapshot = await get(child(ref(db), "players/" + name));
-      const current = snapshot.exists() ? snapshot.val().score : 0;
-      await set(ref(db, "players/" + name), { score: current + 1 });
-    }
+    window.addPlayer = async () => {
+      const n = document.getElementById("newName").value.trim();
+      if(!n) return alert('닉 입력');
+      if((await get(child(playersRef,n))).exists()) return alert('이미 존재');
+      await set(child(playersRef,n),{score:0});
+      document.getElementById("newName").value='';
+    };
 
-    // 점수 초기화
-    window.resetScores = async function () {
-      const snapshot = await get(playersRef);
-      const updates = {};
-      snapshot.forEach(childSnap => {
-        updates[childSnap.key] = { score: 0 };
-      });
-      await set(playersRef, updates);
-    }
+    window.resetScores = async () => {
+      const snap = await get(playersRef);
+      const up={}; snap.forEach(c=>up[c.key]={score:0});
+      await set(playersRef, up);
+    };
+    window.resetAll = () => confirm('전체 삭제?') && set(playersRef, {});
 
-    // 전체 초기화
-    window.resetAll = function () {
-      if (confirm("정말 모든 참가자를 삭제하시겠습니까?")) {
-        set(playersRef, {});
-      }
-    }
-
-    // 관리자 로그인
-    window.checkPassword = function () {
-      const pw = document.getElementById("pwInput").value;
-      if (pw === "kuaang123") {
-        isAdmin = true;
+    window.checkPassword = () => {
+      if(document.getElementById("pwInput").value==='kuaang123') {
+        isAdmin=true;
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
-      } else {
-        alert("비밀번호가 틀렸습니다");
-      }
-    }
+      } else alert('비번 틀림');
+      renderRanking();
+    };
+
+    window.savePrizes = () => {
+      const p1=+document.getElementById('prize1').value||0;
+      const p2=+document.getElementById('prize2').value||0;
+      const p3=+document.getElementById('prize3').value||0;
+      set(ref(db,'config/prizes'),{1:p1,2:p2,3:p3});
+    };
+
+    window.setRound = () => {
+      const r=+document.getElementById('roundInput').value||1;
+      set(ref(db,'config/currentRound'),r);
+    };
+
+    window.endRound = async ()=>{
+      const snap=await get(playersRef);
+      const obj = {};
+      snap.forEach(c=>obj[c.key]=c.val().score);
+      rounds.push({ round: config.currentRound||1, scores: obj, timestamp: Date.now() });
+      await set(roundsRef, rounds);
+      alert('라운드 저장 완료');
+    };
+
+    window.exportTxt = async ()=>{
+      let txt = `게임회차: ${config.currentRound||1}\n`;
+      txt+='순위\t닉네임\t점수\t상금\n';
+      const snap=await get(playersRef);
+      const arr=Object.entries(snap.val()||{}).sort((a,b)=>b[1].score-a[1].score);
+      arr.forEach(([n,o],i)=>{
+        const prize = config.prizes[i+1]||0;
+        txt+=`${i+1}\t${n}\t${o.score}\t${prize}\n`;
+      });
+      const blob=new Blob([txt],{type:'text/plain'}), url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='scoreboard.txt';
+      a.click(); URL.revokeObjectURL(url);
+    };
   </script>
 </head>
 <body class="bg-gray-100 p-4 font-sans relative">
-  <!-- 흐릿한 배경 이미지 -->
-  <div class="absolute inset-0 bg-cover bg-center opacity-10 z-0" style="background-image: url('babydragon.jpg');"></div>
-
-  <!-- 점수판 영역 -->
+  <div class="absolute inset-0 bg-cover bg-center opacity-10 z-0" style="background-image:url('babydragon.jpg')"></div>
   <div class="relative z-10 max-w-xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-6">
     <h1 class="text-2xl font-bold text-center mb-4">🐉 크아앙 제2회 이벤트 점수판</h1>
-
+    <div class="flex justify-between items-center mb-4">
+      <div>현재 <span id="roundNumber">1</span>회차</div>
+      <button onclick="exportTxt()" class="btn-gray">내보내기(.txt)</button>
+    </div>
     <div id="ranking" class="mb-4"></div>
 
-    <div id="admin" class="space-y-2 hidden">
-      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
-      <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
+    <div id="admin" class="space-y-4 hidden">
+      <input id="newName" placeholder="참가자 닉네임" class="border p-2 w-full rounded"/>
+      <button onclick="addPlayer()" class="btn-blue w-full">참가자 추가</button>
       <div class="flex gap-2">
-        <button onclick="resetScores()" class="bg-yellow-500 text-white px-4 py-2 rounded flex-1">점수 초기화</button>
-        <button onclick="resetAll()" class="bg-red-500 text-white px-4 py-2 rounded flex-1">모두 초기화</button>
+        <button onclick="resetScores()" class="btn-yellow flex-1">점수 초기화</button>
+        <button onclick="resetAll()" class="btn-red flex-1">모두 초기화</button>
+      </div>
+      <div class="space-y-2">
+        <div>🏆 등수별 상금 설정 (메소)</div>
+        <input id="prize1" type="number" placeholder="1등 상금" class="border p-1 rounded w-full"/>
+        <input id="prize2" type="number" placeholder="2등 상금" class="border p-1 rounded w-full"/>
+        <input id="prize3" type="number" placeholder="3등 상금" class="border p-1 rounded w-full"/>
+        <button onclick="savePrizes()" class="btn-blue w-full">상금 저장</button>
+      </div>
+      <div class="space-y-2">
+        <div>🎮 회차 설정</div>
+        <input id="roundInput" type="number" placeholder="회차 입력" class="border p-1 rounded w-full"/>
+        <div class="flex gap-2">
+          <button onclick="setRound()" class="btn-blue flex-1">회차 저장</button>
+          <button onclick="endRound()" class="btn-gray flex-1">회차 완료</button>
+        </div>
       </div>
     </div>
 
     <div id="passwordPrompt" class="mt-6">
       <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded"/>
-      <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
+      <button onclick="checkPassword()" class="btn-green w-full mt-2">운영진 로그인</button>
     </div>
   </div>
+
+  <style>
+    .btn-blue{background:#3b82f6;color:white;padding:0.5rem;border-radius:0.375rem;}
+    .btn-red{background:#ef4444;color:white;padding:0.5rem;border-radius:0.375rem;}
+    .btn-yellow{background:#facc15;color:white;padding:0.5rem;border-radius:0.375rem;}
+    .btn-gray{background:#9ca3af;color:white;padding:0.5rem;border-radius:0.375rem;}
+    .btn-green{background:#10b981;color:white;padding:0.5rem;border-radius:0.375rem;}
+  </style>
 </body>
 </html>
