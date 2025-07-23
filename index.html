@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>길드 O/X 퀴즈 점수판</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 font-sans">
+  <div class="max-w-xl mx-auto bg-white rounded-xl shadow-md p-6">
+    <h1 class="text-2xl font-bold text-center mb-4">🎉 O/X 퀴즈 점수판</h1>
+    
+    <div id="ranking" class="mb-4"></div>
+    
+    <div id="admin" class="space-y-2 hidden">
+      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
+      <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
+      <div class="flex gap-2">
+        <button onclick="resetScores()" class="bg-yellow-500 text-white px-4 py-2 rounded flex-1">점수 초기화</button>
+        <button onclick="resetAll()" class="bg-red-500 text-white px-4 py-2 rounded flex-1">모두 초기화</button>
+      </div>
+    </div>
+
+    <div id="passwordPrompt" class="mt-6">
+      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded"/>
+      <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
+    </div>
+  </div>
+
+  <script>
+    let players = JSON.parse(localStorage.getItem("players") || "[]");
+
+    function savePlayers() {
+      localStorage.setItem("players", JSON.stringify(players));
+      renderRanking();
+    }
+
+    function renderRanking() {
+      const sorted = [...players].sort((a, b) => b.score - a.score);
+      document.getElementById("ranking").innerHTML = sorted.map((p, i) =>
+        `<div class="flex justify-between items-center border-b py-2">
+          <span>${i + 1}. ${p.name}</span>
+          <span>${p.score}점</span>
+          ${isAdmin ? `<button onclick="addScore('${p.name}')" class="bg-blue-400 text-white px-2 py-1 rounded text-sm">+1점</button>` : ""}
+        </div>`
+      ).join("");
+    }
+
+    function addPlayer() {
+      const name = document.getElementById("newName").value.trim();
+      if (!name) return alert("닉네임을 입력하세요");
+      if (players.some(p => p.name === name)) return alert("이미 존재합니다");
+      players.push({ name, score: 0 });
+      savePlayers();
+      document.getElementById("newName").value = "";
+    }
+
+    function addScore(name) {
+      const p = players.find(p => p.name === name);
+      if (p) p.score++;
+      savePlayers();
+    }
+
+    function resetScores() {
+      players.forEach(p => p.score = 0);
+      savePlayers();
+    }
+
+    function resetAll() {
+      if (confirm("정말 모든 참가자를 삭제하시겠습니까?")) {
+        players = [];
+        savePlayers();
+      }
+    }
+
+    let isAdmin = false;
+    function checkPassword() {
+      const pw = document.getElementById("pwInput").value;
+      if (pw === "guildquiz2024") {
+        isAdmin = true;
+        document.getElementById("admin").classList.remove("hidden");
+        document.getElementById("passwordPrompt").classList.add("hidden");
+        renderRanking();
+      } else {
+        alert("비밀번호가 틀렸습니다");
+      }
+    }
+
+    renderRanking();
+  </script>
+</body>
+</html>
