@@ -71,7 +71,6 @@
       }).join("");
     }
 
-    // 참가자 추가
     window.addPlayer = async function () {
       const name = document.getElementById("newName").value.trim();
       if (!name) return alert("닉네임을 입력하세요");
@@ -81,28 +80,24 @@
       document.getElementById("newName").value = "";
     }
 
-    // 점수 +1
     window.addScore = async function (name) {
       const snapshot = await get(child(ref(db), "players/" + name));
       const current = snapshot.exists() ? snapshot.val().score : 0;
       await set(ref(db, "players/" + name), { score: current + 1 });
     }
 
-    // 점수 -1
     window.subtractScore = async function (name) {
       const snapshot = await get(child(ref(db), "players/" + name));
       const current = snapshot.exists() ? snapshot.val().score : 0;
       await set(ref(db, "players/" + name), { score: current - 1 });
     }
 
-    // 점수 직접 설정
     window.setScore = async function (name, newScore) {
       const score = parseInt(newScore);
       if (isNaN(score)) return alert("숫자를 입력하세요.");
       await set(ref(db, "players/" + name), { score });
     }
 
-    // 참가자 이름 수정
     window.editNamePrompt = async function (oldName) {
       const newName = prompt("새로운 이름을 입력하세요", oldName);
       if (!newName || newName === oldName) return;
@@ -115,21 +110,33 @@
       }
     }
 
-    // 참가자 삭제
     window.deletePlayer = async function (name) {
       if (confirm(`${name} 참가자를 삭제하시겠습니까?`)) {
         await remove(ref(db, "players/" + name));
       }
     }
 
-    // 관리자 로그인
+    window.resetScores = async function () {
+      const snapshot = await get(playersRef);
+      const updates = {};
+      snapshot.forEach(childSnap => {
+        updates[childSnap.key] = { score: 0 };
+      });
+      await set(playersRef, updates);
+    }
+
+    window.resetAll = function () {
+      if (confirm("정말 모든 참가자를 삭제하시겠습니까?")) {
+        set(playersRef, {});
+      }
+    }
+
     window.checkPassword = function () {
       const pw = document.getElementById("pwInput").value;
       if (pw === "kuaang123") {
         isAdmin = true;
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
-        // 재랜더링
         get(playersRef).then(snapshot => renderRanking(snapshot.val() || {}));
       } else {
         alert("비밀번호가 틀렸습니다");
@@ -138,7 +145,6 @@
   </script>
 </head>
 <body class="bg-gray-100 p-4 font-sans">
-
   <div class="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-8">
     <h1 class="text-3xl font-bold text-center mb-6">🐉 크아앙 제2회 이벤트 점수판</h1>
 
@@ -147,6 +153,10 @@
     <div id="admin" class="space-y-4 hidden">
       <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
       <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
+      <div class="flex gap-2">
+        <button onclick="resetScores()" class="bg-yellow-500 text-white px-4 py-2 rounded flex-1">점수만 초기화</button>
+        <button onclick="resetAll()" class="bg-red-500 text-white px-4 py-2 rounded flex-1">전체 초기화</button>
+      </div>
     </div>
 
     <div id="passwordPrompt" class="mt-8">
@@ -154,6 +164,5 @@
       <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
     </div>
   </div>
-
 </body>
 </html>
