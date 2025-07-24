@@ -3,226 +3,157 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>크아앙 제2회 이벤트 점수판</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+  <title>크아앙 길드 제 2회 이벤트</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      margin: 0;
-      font-family: 'Noto Sans KR', sans-serif;
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
       background-image: url("babydragon.jpg");
       background-size: cover;
       background-position: center;
-      background-repeat: no-repeat;
-    }
-
-    .container {
-      max-width: 860px;
-      margin: 50px auto;
-      background-color: rgba(255, 255, 255, 0.7);
-      padding: 30px;
-      border-radius: 16px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-      text-align: center;
-    }
-
-    h1 {
-      margin-top: 0;
-      font-size: 2rem;
-    }
-
-    .player-list {
-      margin-top: 20px;
-      text-align: left;
-    }
-
-    .player-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 16px;
-      margin: 6px 0;
-      border-bottom: 1px solid #ddd;
-    }
-
-    .player-rank {
-      display: flex;
-      align-items: center;
-      font-weight: bold;
-    }
-
-    .player-controls {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    input[type="text"], input[type="number"] {
-      padding: 8px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-
-    .button {
-      padding: 8px 14px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .button-blue {
-      background-color: #3B82F6;
-      color: white;
-    }
-
-    .button-yellow {
-      background-color: #FACC15;
-      color: black;
-    }
-
-    .button-red {
-      background-color: #EF4444;
-      color: white;
-    }
-
-    .medal {
-      margin-right: 6px;
-    }
-
-    .nickname-form {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-      justify-content: center;
-    }
-
-    .control-buttons {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin-top: 16px;
-      flex-wrap: wrap;
+      opacity: 0.7;
+      z-index: -1;
     }
   </style>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+    import { getDatabase, ref, set, get, onValue, child, update, remove } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCzlRB8iubjeLlTsHmJ0vydWrvSkSuIxn8",
+      authDomain: "ox-quiz-scoreboard.firebaseapp.com",
+      databaseURL: "https://ox-quiz-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "ox-quiz-scoreboard",
+      storageBucket: "ox-quiz-scoreboard.appspot.com",
+      messagingSenderId: "28978610528",
+      appId: "1:28978610528:web:31a681985a0f67bf8c9e05",
+      measurementId: "G-JMP59Y4KYH"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const playersRef = ref(db, "players");
+
+    let isAdmin = false;
+
+    onValue(playersRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      renderRanking(data);
+    });
+
+    function renderRanking(data) {
+      const sorted = Object.entries(data).sort((a, b) => b[1].score - a[1].score);
+      document.getElementById("ranking").innerHTML = sorted.map(([name, obj], i) => {
+        const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+        return `
+          <div class="flex justify-between items-center border-b py-2 px-2 max-w-lg mx-auto">
+            <span class="text-left whitespace-nowrap">${medal}${i + 1}. ${name}</span>
+            <span class="flex items-center gap-2">
+              ${isAdmin 
+                ? `<input type="number" value="${obj.score}" onchange="setScore('${name}', this.value)" class="w-16 text-center border rounded px-1"/>` 
+                : `${obj.score}점`}
+              ${isAdmin 
+                ? `
+                  <button onclick="addScore('${name}')" class="bg-blue-400 text-white px-2 py-1 rounded text-sm">+1</button>
+                  <button onclick="subtractScore('${name}')" class="bg-red-400 text-white px-2 py-1 rounded text-sm">-1</button>
+                  <button onclick="editNamePrompt('${name}')" class="bg-yellow-400 text-white px-2 py-1 rounded text-sm">이름수정</button>
+                  <button onclick="deletePlayer('${name}')" class="bg-gray-500 text-white px-2 py-1 rounded text-sm">삭제</button>
+                ` : ""}
+            </span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // 참가자 추가
+    window.addPlayer = async function () {
+      const name = document.getElementById("newName").value.trim();
+      if (!name) return alert("닉네임을 입력하세요");
+      const snapshot = await get(child(ref(db), "players/" + name));
+      if (snapshot.exists()) return alert("이미 존재하는 이름입니다.");
+      await set(ref(db, "players/" + name), { score: 0 });
+      document.getElementById("newName").value = "";
+    }
+
+    // 점수 +1
+    window.addScore = async function (name) {
+      const snapshot = await get(child(ref(db), "players/" + name));
+      const current = snapshot.exists() ? snapshot.val().score : 0;
+      await set(ref(db, "players/" + name), { score: current + 1 });
+    }
+
+    // 점수 -1
+    window.subtractScore = async function (name) {
+      const snapshot = await get(child(ref(db), "players/" + name));
+      const current = snapshot.exists() ? snapshot.val().score : 0;
+      await set(ref(db, "players/" + name), { score: current - 1 });
+    }
+
+    // 점수 직접 설정
+    window.setScore = async function (name, newScore) {
+      const score = parseInt(newScore);
+      if (isNaN(score)) return alert("숫자를 입력하세요.");
+      await set(ref(db, "players/" + name), { score });
+    }
+
+    // 참가자 이름 수정
+    window.editNamePrompt = async function (oldName) {
+      const newName = prompt("새로운 이름을 입력하세요", oldName);
+      if (!newName || newName === oldName) return;
+      const snapshot = await get(child(ref(db), "players/" + newName));
+      if (snapshot.exists()) return alert("이미 존재하는 이름입니다.");
+      const oldData = await get(child(ref(db), "players/" + oldName));
+      if (oldData.exists()) {
+        await set(ref(db, "players/" + newName), oldData.val());
+        await remove(ref(db, "players/" + oldName));
+      }
+    }
+
+    // 참가자 삭제
+    window.deletePlayer = async function (name) {
+      if (confirm(`${name} 참가자를 삭제하시겠습니까?`)) {
+        await remove(ref(db, "players/" + name));
+      }
+    }
+
+    // 관리자 로그인
+    window.checkPassword = function () {
+      const pw = document.getElementById("pwInput").value;
+      if (pw === "kuaang123") {
+        isAdmin = true;
+        document.getElementById("admin").classList.remove("hidden");
+        document.getElementById("passwordPrompt").classList.add("hidden");
+        // 재랜더링
+        get(playersRef).then(snapshot => renderRanking(snapshot.val() || {}));
+      } else {
+        alert("비밀번호가 틀렸습니다");
+      }
+    }
+  </script>
 </head>
-<body>
-  <div class="container">
-    <h1>🐍 크아앙 제2회 이벤트 점수판</h1>
+<body class="bg-gray-100 p-4 font-sans">
 
-    <div id="playerList" class="player-list"></div>
+  <div class="max-w-4xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-8">
+    <h1 class="text-3xl font-bold text-center mb-6">🐉 크아앙 제2회 이벤트 점수판</h1>
 
-    <div class="nickname-form">
-      <input type="text" id="nicknameInput" placeholder="닉네임"/>
-      <button class="button button-blue" onclick="addPlayer()">참가자 추가</button>
+    <div id="ranking" class="mb-6"></div>
+
+    <div id="admin" class="space-y-4 hidden">
+      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
+      <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
     </div>
 
-    <div class="control-buttons">
-      <button class="button button-yellow" onclick="resetScores()">점수 초기화</button>
-      <button class="button button-red" onclick="resetAll()">모두 초기화</button>
+    <div id="passwordPrompt" class="mt-8">
+      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded"/>
+      <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
     </div>
   </div>
 
-  <script>
-    let players = [];
-
-    function renderPlayers() {
-      const container = document.getElementById("playerList");
-      container.innerHTML = "";
-
-      players
-        .sort((a, b) => b.score - a.score)
-        .forEach((player, index) => {
-          const rank = index + 1;
-          const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
-
-          const row = document.createElement("div");
-          row.className = "player-item";
-
-          const rankLabel = document.createElement("div");
-          rankLabel.className = "player-rank";
-          rankLabel.innerHTML = `${medal} ${rank}. <b>${player.name}</b>`;
-
-          const controls = document.createElement("div");
-          controls.className = "player-controls";
-
-          const scoreInput = document.createElement("input");
-          scoreInput.type = "number";
-          scoreInput.value = player.score;
-          scoreInput.style.width = "60px";
-          scoreInput.onchange = () => {
-            player.score = parseInt(scoreInput.value) || 0;
-            renderPlayers();
-          };
-
-          const editBtn = document.createElement("button");
-          editBtn.className = "button";
-          editBtn.innerText = "이름수정";
-          editBtn.onclick = () => {
-            const newName = prompt("새 이름을 입력하세요", player.name);
-            if (newName && newName !== player.name) {
-              if (players.some(p => p.name === newName)) {
-                alert("이미 등록된 이름입니다.");
-              } else {
-                player.name = newName;
-                renderPlayers();
-              }
-            }
-          };
-
-          const deleteBtn = document.createElement("button");
-          deleteBtn.className = "button";
-          deleteBtn.innerText = "삭제";
-          deleteBtn.onclick = () => {
-            if (confirm(`${player.name}님을 삭제할까요?`)) {
-              players = players.filter(p => p !== player);
-              renderPlayers();
-            }
-          };
-
-          const scoreText = document.createElement("span");
-          scoreText.innerText = `${player.score}점`;
-          scoreText.style.marginLeft = "4px";
-
-          controls.append(scoreInput, editBtn, deleteBtn, scoreText);
-          row.append(rankLabel, controls);
-          container.appendChild(row);
-        });
-    }
-
-    function addPlayer() {
-      const input = document.getElementById("nicknameInput");
-      const name = input.value.trim();
-
-      if (!name) {
-        alert("닉네임을 입력해주세요.");
-        return;
-      }
-
-      if (players.some(p => p.name === name)) {
-        alert("이미 등록된 이름입니다.");
-        return;
-      }
-
-      players.push({ name, score: 0 });
-      input.value = "";
-      renderPlayers();
-    }
-
-    function resetScores() {
-      players.forEach(p => p.score = 0);
-      renderPlayers();
-    }
-
-    function resetAll() {
-      if (confirm("모든 참가자와 점수를 삭제하시겠습니까?")) {
-        players = [];
-        renderPlayers();
-      }
-    }
-
-    renderPlayers();
-  </script>
 </body>
 </html>
