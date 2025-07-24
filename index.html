@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>크아앙 길드 제 2회 이벤트</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
@@ -38,9 +37,9 @@
       document.getElementById("ranking").innerHTML = sorted.map(([name, obj], i) => {
         const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
         return `
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b py-2">
-          <span>${medal}${i + 1}. <span class="font-semibold">${name}</span></span>
-          <div class="flex items-center mt-1 sm:mt-0">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b py-2 text-center">
+          <span class="w-full">${medal}${i + 1}. <span class="font-semibold">${name}</span></span>
+          <div class="flex justify-center items-center mt-2 sm:mt-0">
             ${isAdmin
               ? `<input type="number" class="w-16 text-center border rounded mr-2" value="${obj.score}" onchange="updateScore('${name}', this.value)" />
                  <button onclick="addScore('${name}')" class="bg-blue-400 text-white px-2 py-1 rounded text-sm mr-1">+1</button>
@@ -86,7 +85,6 @@
       if (!newName || newName === oldName) return;
       const snapshot = await get(child(ref(db), "players/" + newName));
       if (snapshot.exists()) return alert("이미 존재하는 닉네임입니다");
-
       const oldData = await get(child(ref(db), "players/" + oldName));
       await set(ref(db, "players/" + newName), oldData.val());
       await remove(ref(db, "players/" + oldName));
@@ -119,17 +117,15 @@
         isAdmin = true;
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
-        renderRanking(JSON.parse(localStorage.getItem("players")) || {}); // 강제 갱신
       } else {
         alert("비밀번호가 틀렸습니다");
       }
     }
   </script>
 </head>
-<body class="relative min-h-screen bg-cover bg-center" style="background-image: url('babydragon.jpg'); background-size: cover;">
+<body class="relative min-h-screen bg-cover bg-center" style="background-image: url('babydragon.jpg');">
   <div class="absolute inset-0 bg-white opacity-30 z-0"></div>
-
-  <div class="relative z-10 max-w-4xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-10 mt-8">
+  <div class="relative z-10 max-w-4xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-10 mt-8 text-center">
     <h1 class="text-3xl font-bold text-center mb-6">🐉 크아앙 제2회 이벤트 점수판</h1>
 
     <div id="ranking" class="mb-6"></div>
