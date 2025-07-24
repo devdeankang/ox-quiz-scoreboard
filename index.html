@@ -2,140 +2,237 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>크아앙 점수판</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>크아앙 제2회 이벤트 점수판</title>
   <style>
     body {
       margin: 0;
-      padding: 0;
-      font-family: 'Noto Sans KR', sans-serif;
-      background: url('./babydragon.jpg') no-repeat center center fixed;
+      font-family: "Arial", sans-serif;
+      background: url('babydragon.jpg') no-repeat center center fixed;
       background-size: cover;
     }
-    .bg-overlay {
-      background-color: rgba(255, 255, 255, 0.7);
+
+    .overlay {
+      background-color: rgba(255, 255, 255, 0.7); /* 70% 불투명도 */
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
     }
-    .scoreboard-container {
-      min-width: 360px;
-      max-width: 500px;
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      padding: 2rem;
+      width: 100%;
+      max-width: 800px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    table {
       width: 90%;
+      margin: 0 auto 1rem;
+      border-collapse: collapse;
+      table-layout: fixed;
     }
+
     .entry-row td {
-      padding: 0.25rem 0.5rem;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #ddd;
+      white-space: nowrap;
     }
+
     .entry-row td.name {
       text-align: left;
-      white-space: nowrap;
+      width: 70%;
     }
+
     .entry-row td.score {
       text-align: right;
-      white-space: nowrap;
+      width: 30%;
+    }
+
+    input, button {
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .admin-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .admin-actions button {
+      flex: 1 1 auto;
+      min-width: 120px;
+    }
+
+    .edit-controls {
+      margin-top: 0.3rem;
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .edit-controls input {
       width: 50px;
+      text-align: center;
+    }
+
+    .entry-controls button {
+      margin-left: 0.3rem;
+    }
+
+    .rank-icon {
+      margin-right: 0.4rem;
     }
   </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div id="app" class="scoreboard-container bg-white bg-overlay rounded-lg shadow-lg p-6 text-center">
-    <h1 class="text-2xl font-bold mb-4">🐍 크아앙 제2회 이벤트 점수판</h1>
-    <table class="w-full mb-4">
-      <tbody id="scoreboard" class="text-lg"></tbody>
-    </table>
-    <div id="admin-panel" class="hidden space-y-2">
-      <input id="newName" type="text" placeholder="닉네임" class="border rounded w-full px-2 py-1" />
-      <button id="addParticipant" class="bg-blue-500 text-white w-full py-2 rounded">참가자 추가</button>
-      <div class="flex space-x-2">
-        <button id="resetScores" class="bg-yellow-500 text-white w-full py-2 rounded">점수 초기화</button>
-        <button id="resetAll" class="bg-red-500 text-white w-full py-2 rounded">모두 초기화</button>
+<body>
+  <div class="overlay">
+    <div class="container">
+      <h1>🐍 크아앙 제2회 이벤트 점수판</h1>
+      <table id="scoreboard"></table>
+
+      <div id="admin-login">
+        <input type="password" id="admin-password" placeholder="운영진 비밀번호"/>
+        <button onclick="loginAdmin()">운영진 로그인</button>
       </div>
-    </div>
-    <div id="admin-login" class="mt-4">
-      <input id="admin-password" type="password" placeholder="운영진 비밀번호" class="border rounded w-full px-2 py-1 mb-2" />
-      <button id="login-btn" class="bg-green-500 text-white w-full py-2 rounded">운영진 로그인</button>
+
+      <div id="admin-panel" style="display: none;">
+        <input type="text" id="new-name" placeholder="닉네임"/>
+        <button onclick="addParticipant()">참가자 추가</button>
+        <div class="admin-actions">
+          <button style="background-color: gold;" onclick="resetScores()">점수 초기화</button>
+          <button style="background-color: red; color: white;" onclick="resetAll()">모두 초기화</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCz1RB8iubjeL1TsHmJ0vydvhrvSkSuIxn8",
-      authDomain: "ox-quiz-scoreboard.firebaseapp.com",
-      databaseURL: "https://ox-quiz-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "ox-quiz-scoreboard",
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const ref = db.ref("scoreboard");
-    const gameNumberRef = db.ref("gameNumber");
-    const scoreboardEl = document.getElementById("scoreboard");
-    const adminPanel = document.getElementById("admin-panel");
-    const loginBtn = document.getElementById("login-btn");
-    const adminPassword = document.getElementById("admin-password");
-    const correctPassword = "admin1234";
+    const password = "kuaang123";
+    let isAdmin = false;
+    let participants = [];
 
-    loginBtn.onclick = () => {
-      if (adminPassword.value === correctPassword) {
-        adminPanel.classList.remove("hidden");
-        document.getElementById("admin-login").classList.add("hidden");
-      } else {
-        alert("비밀번호가 틀렸습니다.");
-      }
-    };
+    function renderScoreboard() {
+      const table = document.getElementById("scoreboard");
+      table.innerHTML = "";
 
-    function updateUI(data) {
-      const entries = Object.entries(data || {}).map(([name, score]) => ({ name, score }));
-      entries.sort((a, b) => b.score - a.score);
+      const sorted = [...participants].sort((a, b) => b.score - a.score);
+      sorted.forEach((p, i) => {
+        const row = document.createElement("tr");
+        row.className = "entry-row";
 
-      scoreboardEl.innerHTML = "";
-      entries.forEach((entry, index) => {
-        const tr = document.createElement("tr");
-        tr.classList.add("entry-row");
         let medal = "";
-        if (index === 0) medal = "🥇 ";
-        else if (index === 1) medal = "🥈 ";
-        else if (index === 2) medal = "🥉 ";
-        tr.innerHTML = `
-          <td class="name">${medal}${index + 1}. <b>${entry.name}</b></td>
-          <td class="score">${entry.score}점</td>
-        `;
-        scoreboardEl.appendChild(tr);
+        if (i === 0) medal = "🥇";
+        else if (i === 1) medal = "🥈";
+        else if (i === 2) medal = "🥉";
+
+        const nameCell = document.createElement("td");
+        nameCell.className = "name";
+        nameCell.textContent = `${i + 1}. ${p.name}`;
+        if (medal) nameCell.innerHTML = `${medal} ${i + 1}. ${p.name}`;
+
+        const scoreCell = document.createElement("td");
+        scoreCell.className = "score";
+        scoreCell.textContent = `${p.score}점`;
+
+        if (isAdmin) {
+          const controlDiv = document.createElement("div");
+          controlDiv.className = "edit-controls";
+
+          const scoreInput = document.createElement("input");
+          scoreInput.type = "number";
+          scoreInput.value = p.score;
+          scoreInput.onchange = () => {
+            p.score = parseInt(scoreInput.value);
+            renderScoreboard();
+          };
+
+          const editBtn = document.createElement("button");
+          editBtn.textContent = "이름수정";
+          editBtn.onclick = () => {
+            const newName = prompt("새 이름을 입력하세요:", p.name);
+            if (!newName || newName.trim() === "") return;
+            if (participants.some(x => x.name === newName.trim())) {
+              alert("같은 이름이 이미 존재합니다!");
+              return;
+            }
+            p.name = newName.trim();
+            renderScoreboard();
+          };
+
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "삭제";
+          delBtn.onclick = () => {
+            if (confirm(`${p.name} 참가자를 삭제할까요?`)) {
+              participants = participants.filter(x => x !== p);
+              renderScoreboard();
+            }
+          };
+
+          controlDiv.appendChild(scoreInput);
+          controlDiv.appendChild(editBtn);
+          controlDiv.appendChild(delBtn);
+          scoreCell.appendChild(controlDiv);
+        }
+
+        row.appendChild(nameCell);
+        row.appendChild(scoreCell);
+        table.appendChild(row);
       });
     }
 
-    ref.on("value", (snapshot) => {
-      updateUI(snapshot.val());
-    });
-
-    document.getElementById("addParticipant").onclick = () => {
-      const name = document.getElementById("newName").value.trim();
-      if (!name) return;
-      ref.once("value", (snapshot) => {
-        const data = snapshot.val() || {};
-        if (data[name]) {
-          alert("이미 등록된 이름입니다.");
-          return;
-        }
-        ref.child(name).set(0);
-        document.getElementById("newName").value = "";
-      });
-    };
-
-    document.getElementById("resetScores").onclick = () => {
-      ref.once("value", (snapshot) => {
-        const updates = {};
-        snapshot.forEach((child) => {
-          updates[child.key] = 0;
-        });
-        ref.update(updates);
-      });
-    };
-
-    document.getElementById("resetAll").onclick = () => {
-      if (confirm("정말 모든 참가자를 초기화하시겠습니까?")) {
-        ref.remove();
+    function loginAdmin() {
+      const input = document.getElementById("admin-password").value;
+      if (input === password) {
+        isAdmin = true;
+        document.getElementById("admin-login").style.display = "none";
+        document.getElementById("admin-panel").style.display = "block";
+        renderScoreboard();
+      } else {
+        alert("비밀번호가 틀렸습니다.");
       }
-    };
+    }
+
+    function addParticipant() {
+      const nameInput = document.getElementById("new-name");
+      const name = nameInput.value.trim();
+      if (!name) return;
+      if (participants.some(p => p.name === name)) {
+        alert("같은 이름이 이미 등록되어 있습니다!");
+        return;
+      }
+      participants.push({ name, score: 0 });
+      nameInput.value = "";
+      renderScoreboard();
+    }
+
+    function resetScores() {
+      if (confirm("점수를 모두 0점으로 초기화할까요?")) {
+        participants.forEach(p => p.score = 0);
+        renderScoreboard();
+      }
+    }
+
+    function resetAll() {
+      if (confirm("모든 참가자를 삭제하고 초기화할까요?")) {
+        participants = [];
+        renderScoreboard();
+      }
+    }
   </script>
 </body>
 </html>
