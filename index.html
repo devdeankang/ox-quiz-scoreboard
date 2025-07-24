@@ -9,16 +9,17 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-    import { getDatabase, ref, set, get, onValue, child, remove } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
+    import { getDatabase, ref, set, get, onValue, child } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCzlRB8iubjeLlTsHmJ0vydWrvSkSuIxn8",
       authDomain: "ox-quiz-scoreboard.firebaseapp.com",
       databaseURL: "https://ox-quiz-scoreboard-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "ox-quiz-scoreboard",
-      storageBucket: "ox-quiz-scoreboard.appspot.com",
+      storageBucket: "ox-quiz-scoreboard.firebasestorage.app",
       messagingSenderId: "28978610528",
-      appId: "1:28978610528:web:31a681985a0f67bf8c9e05"
+      appId: "1:28978610528:web:31a681985a0f67bf8c9e05",
+      measurementId: "G-JMP59Y4KYH"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -27,6 +28,7 @@
 
     let isAdmin = false;
 
+    // 실시간 점수판 렌더링
     onValue(playersRef, (snapshot) => {
       const data = snapshot.val() || {};
       renderRanking(data);
@@ -37,65 +39,85 @@
       document.getElementById("ranking").innerHTML = sorted.map(([name, obj], i) => {
         const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
         return `
-        <div class="flex justify-between items-center border-b py-2">
-          <span>${medal}${i + 1}. ${name}</span>
-          <span class="flex items-center gap-1">
-            ${obj.score}점
-            ${isAdmin ? `
-              <input type="number" class="w-16 px-1 border rounded text-sm" value="${obj.score}" onchange="updateScore('${name}', this.value)" />
+        <div class="flex flex-col sm:flex-row justify-between items-center border-b py-2 gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="min-w-[180px]">${medal}${i + 1}. ${name}</span>
+            <span class="text-gray-700">${obj.score}점</span>
+          </div>
+          ${isAdmin ? `
+            <div class="flex flex-wrap items-center gap-1">
               <button onclick="addScore('${name}')" class="bg-blue-400 text-white px-2 py-1 rounded text-sm">+1</button>
               <button onclick="subtractScore('${name}')" class="bg-red-400 text-white px-2 py-1 rounded text-sm">-1</button>
-              <button onclick="editName('${name}')" class="bg-yellow-400 text-white px-2 py-1 rounded text-sm">이름수정</button>
-              <button onclick="deletePlayer('${name}')" class="bg-gray-500 text-white px-2 py-1 rounded text-sm">삭제</button>
-            ` : ""}
-          </span>
-        </div>`;
+              <button onclick="editScore('${name}')" class="bg-green-600 text-white px-2 py-1 rounded text-sm">점수수정</button>
+              <button onclick="editPlayerNamePrompt('${name}')" class="bg-yellow-500 text-white px-2 py-1 rounded text-sm">이름수정</button>
+              <button onclick="deletePlayer('${name}')" class="bg-gray-600 text-white px-2 py-1 rounded text-sm">삭제</button>
+            </div>
+          ` : ""}
+        </div>
+        `;
       }).join("");
     }
 
+    // 참가자 추가
     window.addPlayer = async function () {
       const name = document.getElementById("newName").value.trim();
       if (!name) return alert("닉네임을 입력하세요");
+
       const snapshot = await get(child(ref(db), "players/" + name));
       if (snapshot.exists()) return alert("이미 존재하는 닉네임입니다");
+
       await set(ref(db, "players/" + name), { score: 0 });
       document.getElementById("newName").value = "";
     }
 
+    // 점수 +1
     window.addScore = async function (name) {
       const snapshot = await get(child(ref(db), "players/" + name));
       const current = snapshot.exists() ? snapshot.val().score : 0;
       await set(ref(db, "players/" + name), { score: current + 1 });
     }
 
+    // 점수 -1 (음수 허용)
     window.subtractScore = async function (name) {
       const snapshot = await get(child(ref(db), "players/" + name));
       const current = snapshot.exists() ? snapshot.val().score : 0;
       await set(ref(db, "players/" + name), { score: current - 1 });
     }
 
-    window.updateScore = async function (name, value) {
-      const score = parseInt(value);
-      if (isNaN(score)) return;
+    // 점수 직접 수정
+    window.editScore = async function (name) {
+      const input = prompt(`${name}의 새로운 점수를 입력하세요`);
+      if (input === null) return;
+      const score = parseInt(input);
+      if (isNaN(score)) return alert("정수를 입력해주세요");
       await set(ref(db, "players/" + name), { score });
     }
 
+    // 이름 수정
+    window.editPlayerNamePrompt = async function (oldName) {
+      const newName = prompt("새 이름을 입력하세요", oldName);
+      if (!newName || newName.trim() === "") return alert("이름이 비어있습니다.");
+      if (oldName === newName.trim()) return;
+
+      const snapshot = await get(child(ref(db), "players/" + newName));
+      if (snapshot.exists()) return alert("이미 존재하는 이름입니다.");
+
+      const oldSnapshot = await get(child(ref(db), "players/" + oldName));
+      if (!oldSnapshot.exists()) return alert("기존 참가자를 찾을 수 없습니다.");
+
+      const oldData = oldSnapshot.val();
+      await set(ref(db, "players/" + newName), oldData);
+      await set(ref(db, "players/" + oldName), null);
+    }
+
+    // 참가자 삭제
     window.deletePlayer = async function (name) {
       if (confirm(`${name} 참가자를 삭제하시겠습니까?`)) {
-        await remove(ref(db, "players/" + name));
+        await set(ref(db, "players/" + name), null);
       }
     }
 
-    window.editName = async function (oldName) {
-      const newName = prompt("새 닉네임을 입력하세요", oldName);
-      if (!newName || newName === oldName) return;
-      const snapshot = await get(child(ref(db), "players/" + newName));
-      if (snapshot.exists()) return alert("이미 존재하는 닉네임입니다");
-      const oldData = (await get(child(ref(db), "players/" + oldName))).val();
-      await set(ref(db, "players/" + newName), oldData);
-      await remove(ref(db, "players/" + oldName));
-    }
-
+    // 점수 초기화
     window.resetScores = async function () {
       const snapshot = await get(playersRef);
       const updates = {};
@@ -105,20 +127,22 @@
       await set(playersRef, updates);
     }
 
+    // 전체 초기화
     window.resetAll = function () {
       if (confirm("정말 모든 참가자를 삭제하시겠습니까?")) {
         set(playersRef, {});
       }
     }
 
+    // 관리자 로그인
     window.checkPassword = function () {
       const pw = document.getElementById("pwInput").value;
       if (pw === "kuaang123") {
         isAdmin = true;
         document.getElementById("admin").classList.remove("hidden");
         document.getElementById("passwordPrompt").classList.add("hidden");
-        // 강제 리렌더링
-        get(playersRef).then(snapshot => renderRanking(snapshot.val()));
+        const event = new Event("refresh");
+        document.dispatchEvent(event); // 리렌더링 트리거
       } else {
         alert("비밀번호가 틀렸습니다");
       }
@@ -126,30 +150,31 @@
   </script>
 
   <style>
-    body::before {
-      content: "";
-      background: url('babydragon.jpg') no-repeat center center/cover;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      opacity: 0.1;
-      z-index: -1;
+    body {
+      background-image: url('babydragon.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-4 font-sans">
-  <div class="max-w-3xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-8">
+<body class="bg-gray-100 bg-opacity-10 p-4 font-sans">
+  <div class="relative z-10 max-w-3xl mx-auto bg-white bg-opacity-90 rounded-xl shadow-md p-10">
     <h1 class="text-3xl font-bold text-center mb-6">🐉 크아앙 제2회 이벤트 점수판</h1>
-    <div id="ranking" class="mb-4"></div>
-    <div id="admin" class="space-y-2 hidden">
-      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded" />
+
+    <div id="ranking" class="mb-6"></div>
+
+    <div id="admin" class="space-y-3 hidden">
+      <input id="newName" placeholder="닉네임" class="border p-2 w-full rounded"/>
       <button onclick="addPlayer()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">참가자 추가</button>
       <div class="flex gap-2">
         <button onclick="resetScores()" class="bg-yellow-500 text-white px-4 py-2 rounded flex-1">점수 초기화</button>
         <button onclick="resetAll()" class="bg-red-500 text-white px-4 py-2 rounded flex-1">모두 초기화</button>
       </div>
     </div>
+
     <div id="passwordPrompt" class="mt-6">
-      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded" />
+      <input id="pwInput" placeholder="운영진 비밀번호" type="password" class="border p-2 w-full rounded"/>
       <button onclick="checkPassword()" class="bg-green-500 text-white px-4 py-2 mt-2 rounded w-full">운영진 로그인</button>
     </div>
   </div>
